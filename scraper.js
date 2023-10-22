@@ -39,8 +39,8 @@ async function navigateToOffersPage(page) {
     await page.waitForTimeout(5000); // Wait for offers page to load
 }
 
-async function handlePhoneNumbers(page, shouldContinueScraping) {
-    while (shouldContinueScraping) {
+async function handlePhoneNumbers(page, scrapingStatus) {
+    while (scrapingStatus.shouldContinue) {
         const hiddenPhoneButtonXpath = '//button[contains(@class, "btn-list") and contains(@class, "btn-block") and contains(@class, "ng-star-inserted")]//span[contains(text(), " *** ")]';
         const hiddenPhoneButtons = await page.$x(hiddenPhoneButtonXpath);
     
@@ -65,12 +65,13 @@ async function handlePhoneNumbers(page, shouldContinueScraping) {
             console.warn(`Error while getting number: ${err.message}`);
         }
     }
-    return shouldContinueScraping; // Return the flag's value so that we can use it in the scrapeData function
+    return scrapingStatus.shouldContinue; // Return the flag's value so that we can use it in the scrapeData function
 }
 
-async function scrapeData(browser, page, shouldContinueScraping) {
-    console.log(shouldContinueScraping);
-    page.setViewport({
+async function scrapeData(browser, page, scrapingStatus) {
+    console.log("Page inside scrapeData:", page);
+    console.log(scrapingStatus.shouldContinue);
+    await page.setViewport({
         width: 1920,
         height: 1080,
     });
@@ -85,9 +86,10 @@ async function scrapeData(browser, page, shouldContinueScraping) {
         throw err;
     }
 
-    for (let pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
+    let pageIndex; // Declare here
+    for (pageIndex = 0; pageIndex < MAX_PAGES; pageIndex++) {
         // Store the return value from handlePhoneNumbers
-        const continueScraping = await handlePhoneNumbers(page, shouldContinueScraping);
+        const continueScraping = await handlePhoneNumbers(page, scrapingStatus);
     
         if (continueScraping) {
             console.log("Navigating to the next page...");
@@ -109,7 +111,7 @@ async function scrapeData(browser, page, shouldContinueScraping) {
     }
     
     // Moved out of the for loop to ensure browser only closes after all processing is done.
-    if (pageIndex === MAX_PAGES - 1 || !continueScraping) {
+    if (pageIndex === MAX_PAGES - 1 || !scrapingStatus.shouldContinue) {
         await browser.close();
         console.log("Done!");
     }

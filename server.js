@@ -3,12 +3,17 @@ const initialize = require('./init.js');
 const scrapeData = require('./scraper.js');
 
 let browser, page;
-let shouldContinueScraping = true; // global flag to stop scraping
+let scrapingStatus = { shouldContinue: true };
 
 const app = express();
 const PORT = 3000;
 
-// Route for root path
+// Middleware to log all incoming requests
+app.use((req, res, next) => {
+    console.log(`Received request for ${req.path} at ${new Date().toISOString()}`);
+    next();
+});
+
 app.get('/', (req, res) => {
     res.send('Welcome to the Scraper Express Server!');
 });
@@ -20,7 +25,7 @@ app.get('/start', async (req, res) => {
         const initResults = await initialize();
         browser = initResults.browser;
         page = initResults.page;
-        shouldContinueScraping = true;
+        scrapingStatus.shouldContinue = true;
         res.send('Browser initialized and logged in!');
     } catch (error) {
         console.error('Error initializing browser:', error);
@@ -28,11 +33,11 @@ app.get('/start', async (req, res) => {
     }
 });
 
-// Route to start the scraping process
 app.get('/scrape', async (req, res) => {
     try {
-        shouldContinueScraping = true; // Set it to true again, in case it was stopped earlier
-        await scrapeData(browser, page, shouldContinueScraping);
+        scrapingStatus.shouldContinue = true;
+        console.log("Page before scrapeData call:", page);
+        await scrapeData(browser, page, scrapingStatus);
         res.send('Scraping process complete!');
     } catch (error) {
         console.error('Error during scraping:', error);
@@ -40,9 +45,8 @@ app.get('/scrape', async (req, res) => {
     }
 });
 
-// New route to stop the scraping process
 app.get('/stop', (req, res) => {
-    shouldContinueScraping = false;
+    scrapingStatus.shouldContinue = false;
     res.send('Scraping process has been stopped. Browser remains open.');
 });
 
